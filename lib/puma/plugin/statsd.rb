@@ -1,37 +1,7 @@
 # coding: utf-8, frozen_string_literal: true
 require "puma"
 require "puma/plugin"
-require 'socket'
-
-class StatsdConnector
-  ENV_NAME = "STATSD_HOST"
-  STATSD_TYPES = { count: 'c', gauge: 'g' }
-  METRIC_DELIMETER = ".".freeze
-
-  attr_reader :host, :port
-
-  def initialize
-    @host = ENV.fetch(ENV_NAME, "127.0.0.1")
-    @port = ENV.fetch("STATSD_PORT", 8125)
-    @socket_path = ENV.fetch("STATSD_SOCKET_PATH", nil)
-  end
-
-  def send(metric_name:, value:, type:, tags: nil)
-    data = "#{metric_name}:#{value}|#{STATSD_TYPES.fetch(type)}"
-    data = "#{data}|##{tags}" unless tags.nil?
-
-    if @socket_path
-      socket = Socket.new(Socket::AF_UNIX, Socket::SOCK_DGRAM)
-      socket.connect(Socket.pack_sockaddr_un(@socket_path))
-      socket.sendmsg_nonblock(data)
-    else
-      socket = UDPSocket.new
-      socket.send(data, 0, host, port)
-    end
-  ensure
-    socket.close
-  end
-end
+require "datadog/statsd"
 
 # Wrap puma's stats in a safe API
 class PumaStats
@@ -101,7 +71,8 @@ Puma::Plugin.create do
   def start(launcher)
     @launcher = launcher
 
-    @statsd = ::StatsdConnector.new
+    @statsd =  Datadog::Statsd.new(ENV.fetch('DD_AGENT_HOST', 'localhost'),
+                                   ENV.fetch('DD_METRIC_AGENT_PORT', '8125'))
     @launcher.events.debug "statsd: enabled (host: #{@statsd.host})"
 
     # Fetch global metric prefix from env variable
@@ -128,12 +99,8 @@ Puma::Plugin.create do
     #
     tags = []
 
-    if ENV.has_key?("MY_POD_NAME")
-      tags << "pod_name:#{ENV['MY_POD_NAME']}"
-    end
-
-    if ENV.has_key?("STATSD_GROUPING")
-      tags << "grouping:#{ENV['STATSD_GROUPING']}"
+    if ENV.has_key?('DD_DOGSTATSD_TAGS')
+      tags << ENV['DD_DOGSTATSD_TAGS']
     end
 
     # Standardised datadog tag attributes, so that we can share the metric

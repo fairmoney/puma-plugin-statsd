@@ -12,6 +12,7 @@ Gem::Specification.new do |spec|
   spec.executables = ["statsd-to-stdout"]
 
   spec.add_runtime_dependency "puma", ">= 5.0", "< 6"
+  spec.add_runtime_dependency "dogstatsd-ruby", ">= 5", "< 6"
 
   spec.add_development_dependency "bundler"
   spec.add_development_dependency "rake"
