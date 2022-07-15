@@ -100,16 +100,7 @@ Puma::Plugin.create do
     tags = []
 
     if ENV.has_key?('DD_DOGSTATSD_TAGS')
-      tags << ENV['DD_DOGSTATSD_TAGS']
-    end
-
-    # Standardised datadog tag attributes, so that we can share the metric
-    # tags with the application running
-    #
-    # https://docs.datadoghq.com/agent/docker/?tab=standard#global-options
-    #
-    if ENV.has_key?("DD_TAGS")
-      ENV["DD_TAGS"].split(/\s+|,/).each do |t|
+      ENV["DD_DOGSTATSD_TAGS"].split(/\s+|,/).each do |t|
         tags << t
       end
     end
