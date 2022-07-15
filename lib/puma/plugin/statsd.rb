@@ -71,7 +71,7 @@ Puma::Plugin.create do
   def start(launcher)
     @launcher = launcher
 
-    @statsd =  Datadog::Statsd.new(ENV.fetch('DD_AGENT_HOST', 'localhost'),
+    @statsd = Datadog::Statsd.new(ENV.fetch('DD_AGENT_HOST', 'localhost'),
                                    ENV.fetch('DD_METRIC_AGENT_PORT', '8125'))
     @launcher.events.debug "statsd: enabled (host: #{@statsd.host})"
 
@@ -150,14 +150,14 @@ Puma::Plugin.create do
       @launcher.events.debug "statsd: notify statsd"
       begin
         stats = ::PumaStats.new(Puma.stats_hash)
-        @statsd.send(metric_name: prefixed_metric_name("puma.workers"), value: stats.workers, type: :gauge, tags: tags)
-        @statsd.send(metric_name: prefixed_metric_name("puma.booted_workers"), value: stats.booted_workers, type: :gauge, tags: tags)
-        @statsd.send(metric_name: prefixed_metric_name("puma.old_workers"), value: stats.old_workers, type: :gauge, tags: tags)
-        @statsd.send(metric_name: prefixed_metric_name("puma.running"), value: stats.running, type: :gauge, tags: tags)
-        @statsd.send(metric_name: prefixed_metric_name("puma.backlog"), value: stats.backlog, type: :gauge, tags: tags)
-        @statsd.send(metric_name: prefixed_metric_name("puma.pool_capacity"), value: stats.pool_capacity, type: :gauge, tags: tags)
-        @statsd.send(metric_name: prefixed_metric_name("puma.max_threads"), value: stats.max_threads, type: :gauge, tags: tags)
-        @statsd.send(metric_name: prefixed_metric_name("puma.requests_count"), value: stats.requests_count, type: :gauge, tags: tags)
+        @statsd.gauge(prefixed_metric_name("puma.workers"), stats.workers, tags: tags)
+        @statsd.gauge(prefixed_metric_name("puma.booted_workers"), stats.booted_workers, tags: tags)
+        @statsd.gauge(prefixed_metric_name("puma.old_workers"), stats.old_workers, tags: tags)
+        @statsd.gauge(prefixed_metric_name("puma.running"), stats.running, tags: tags)
+        @statsd.gauge(prefixed_metric_name("puma.backlog"), stats.backlog, tags: tags)
+        @statsd.gauge(prefixed_metric_name("puma.pool_capacity"), stats.pool_capacity, tags: tags)
+        @statsd.gauge(prefixed_metric_name("puma.max_threads"), stats.max_threads, tags: tags)
+        @statsd.gauge(prefixed_metric_name("puma.requests_count"), stats.requests_count, tags: tags)
       rescue StandardError => e
         @launcher.events.unknown_error e, nil, "! statsd: notify stats failed"
       ensure
