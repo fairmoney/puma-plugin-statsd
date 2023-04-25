@@ -1,4 +1,5 @@
-# coding: utf-8, frozen_string_literal: true
+# coding: utf-8
+# frozen_string_literal: true
 require "puma"
 require "puma/plugin"
 require "datadog/statsd"
@@ -70,10 +71,16 @@ Puma::Plugin.create do
   # We can start doing something when we have a launcher:
   def start(launcher)
     @launcher = launcher
+    @log_writer =
+      if Gem::Version.new(Puma::Const::PUMA_VERSION) >= Gem::Version.new(6)
+        @launcher.log_writer
+      else
+        @launcher.events
+      end
 
     @statsd = Datadog::Statsd.new(ENV.fetch('DD_AGENT_HOST', 'localhost'),
                                    ENV.fetch('DD_METRIC_AGENT_PORT', '8125'))
-    @launcher.events.debug "statsd: enabled (host: #{@statsd.host})"
+    @log_writer.debug "statsd: enabled (host: #{@statsd.host})"
 
     # Fetch global metric prefix from env variable
     @metric_prefix = ENV.fetch("STATSD_METRIC_PREFIX", nil)
@@ -121,6 +128,14 @@ Puma::Plugin.create do
       tags << "version:#{ENV["DD_VERSION"]}"
     end
 
+    # Support the origin detection over UDP from Datadog, it allows DogStatsD
+    # to detect where the container metrics come from, and tag metrics automatically.
+    #
+    # https://docs.datadoghq.com/developers/dogstatsd/?tab=kubernetes#origin-detection-over-udp
+    if ENV.has_key?("DD_ENTITY_ID")
+      tags << "dd.internal.entity_id:#{ENV["DD_ENTITY_ID"]}"
+    end
+
     # Return nil if we have no environment variable tags. This way we don't
     # send an unnecessary '|' on the end of each stat
     return nil if tags.empty?
@@ -138,7 +153,7 @@ Puma::Plugin.create do
 
     sleep 5
     loop do
-      @launcher.events.debug "statsd: notify statsd"
+      @log_writer.debug "statsd: notify statsd"
       begin
         stats = ::PumaStats.new(Puma.stats_hash)
         @statsd.gauge(prefixed_metric_name("puma.workers"), stats.workers, tags: tags)
@@ -150,7 +165,7 @@ Puma::Plugin.create do
         @statsd.gauge(prefixed_metric_name("puma.max_threads"), stats.max_threads, tags: tags)
         @statsd.gauge(prefixed_metric_name("puma.requests_count"), stats.requests_count, tags: tags)
       rescue StandardError => e
-        @launcher.events.unknown_error e, nil, "! statsd: notify stats failed"
+        @log_writer.unknown_error e, nil, "! statsd: notify stats failed"
       ensure
         sleep 2
       end
