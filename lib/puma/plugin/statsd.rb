@@ -34,6 +34,10 @@ class PumaStats
     end
   end
 
+  def performing
+    running - pool_capacity
+  end
+
   def backlog
     if clustered?
       @stats[:worker_status].map { |s| s[:last_status].fetch(:backlog, 0) }.inject(0, &:+)
@@ -164,6 +168,7 @@ Puma::Plugin.create do
         @statsd.gauge(prefixed_metric_name("puma.pool_capacity"), stats.pool_capacity, tags: tags)
         @statsd.gauge(prefixed_metric_name("puma.max_threads"), stats.max_threads, tags: tags)
         @statsd.gauge(prefixed_metric_name("puma.requests_count"), stats.requests_count, tags: tags)
+        @statsd.gauge(prefixed_metric_name("puma.performing"), stats.performing, tags: tags)
       rescue StandardError => e
         @log_writer.unknown_error e, nil, "! statsd: notify stats failed"
       ensure
