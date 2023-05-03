@@ -35,7 +35,7 @@ class PumaStats
   end
 
   def performing
-    running - pool_capacity
+    max_threads - pool_capacity
   end
 
   def backlog
